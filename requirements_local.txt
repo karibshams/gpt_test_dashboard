@@ -1,0 +1,17 @@
+
+# Requirements for Local AI Testing (No API Key Required)
+
+# Core dependencies
+streamlit>=1.28.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Hugging Face Transformers for local AI
+transformers>=4.35.0
+torch>=2.0.0
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+
+# Optional but recommended
+pandas>=2.0.0
+numpy>=1.24.0
