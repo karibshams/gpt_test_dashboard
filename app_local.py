@@ -1,4 +1,4 @@
-# app_local.py - Local AI Testing with GPT-2 (No API Key Required)
+# app_local.py - Enhanced Local AI with Spiritual Tone (No API Key Required)
 
 import os
 from typing import Dict, List
@@ -8,18 +8,21 @@ import re
 from prompt import (
     CLASSIFICATION_PROMPT, 
     REPLY_GENERATION_PROMPTS, 
-    SYSTEM_PROMPT
+    SYSTEM_PROMPT,
+    SPIRITUAL_TEMPLATES,
+    get_keyword_context,
+    get_template_response
 )
 
 class LocalSocialMediaAI:
     """
-    Local AI system using Hugging Face Transformers.
+    Local AI system with spiritual/biblical tone using Hugging Face Transformers.
     No API key required - runs completely offline after downloading models.
     """
     
     def __init__(self):
         """Initialize local AI models."""
-        print("🤖 Initializing local AI models...")
+        print("🤖 Initializing local AI models with spiritual tone...")
         print("This may take a few minutes on first run to download models...")
         
         # Initialize classification model (using zero-shot classification)
@@ -30,22 +33,23 @@ class LocalSocialMediaAI:
         )
         
         # Initialize text generation model
+        # Using GPT-2 medium for better quality
         self.generator = pipeline(
             "text-generation",
-            model="gpt2-medium",  # You can use "gpt2" for smaller/faster model
+            model="gpt2-medium",
             device=0 if torch.cuda.is_available() else -1
         )
         
         # Categories for classification
         self.categories = ["LEAD", "PRAISE", "SPAM", "QUESTION", "COMPLAINT"]
         
-        # Category descriptions for better classification
+        # Spiritual category descriptions for better classification
         self.category_descriptions = {
-            "LEAD": "interested in buying or purchasing products or services",
-            "PRAISE": "positive feedback compliments or happy customer",
+            "LEAD": "interested in devotionals spiritual resources or faith content",
+            "PRAISE": "positive spiritual feedback testimonial or expressing gratitude to God",
             "SPAM": "irrelevant promotional content or suspicious links",
-            "QUESTION": "asking questions or seeking information",
-            "COMPLAINT": "negative feedback problems or dissatisfaction"
+            "QUESTION": "asking about faith God spirituality or seeking spiritual guidance",
+            "COMPLAINT": "spiritual struggles doubts criticism or expressing hurt"
         }
         
         print("✅ Local AI models initialized successfully!")
@@ -53,16 +57,10 @@ class LocalSocialMediaAI:
     
     def classify_comment(self, comment: str) -> str:
         """
-        Classify a social media comment using local model.
-        
-        Args:
-            comment: The social media comment to classify
-            
-        Returns:
-            Category: LEAD, PRAISE, SPAM, QUESTION, or COMPLAINT
+        Classify a social media comment using local model with spiritual context.
         """
         try:
-            # Use zero-shot classification with detailed labels
+            # Use zero-shot classification with spiritual descriptions
             result = self.classifier(
                 comment,
                 candidate_labels=list(self.category_descriptions.values()),
@@ -75,30 +73,33 @@ class LocalSocialMediaAI:
                 if desc == top_label:
                     return cat
             
-            # Fallback classification based on keywords
-            return self._keyword_classification(comment)
+            # Fallback to keyword classification
+            return self._spiritual_keyword_classification(comment)
             
         except Exception as e:
             print(f"Error in classification: {str(e)}")
-            return self._keyword_classification(comment)
+            return self._spiritual_keyword_classification(comment)
     
-    def _keyword_classification(self, comment: str) -> str:
-        """Fallback keyword-based classification."""
+    def _spiritual_keyword_classification(self, comment: str) -> str:
+        """Enhanced keyword classification with spiritual context."""
         comment_lower = comment.lower()
         
-        # Keyword patterns for each category
+        # Spiritual keyword patterns
         patterns = {
-            "LEAD": ["interested", "buy", "purchase", "order", "price", "cost", "how much"],
-            "PRAISE": ["love", "great", "amazing", "best", "excellent", "wonderful", "thank"],
-            "SPAM": ["click here", "free", "win", "prize", "xxx", "bit.ly", "check out my"],
-            "COMPLAINT": ["terrible", "worst", "disappointed", "problem", "issue", "broken", "never"],
-            "QUESTION": ["?", "how", "what", "when", "where", "why", "can you", "do you"]
+            "LEAD": ["devotional", "interested", "get this", "how can i", "want to", "course", "resource"],
+            "PRAISE": ["blessed", "grateful", "thank", "moved", "powerful", "tears", "crying", "amazing"],
+            "SPAM": ["click here", "free followers", "bit.ly", "check out my", "xxx"],
+            "COMPLAINT": ["struggling", "doubt", "fake", "shallow", "disappointed", "silent", "abandoned"],
+            "QUESTION": ["?", "how", "what", "why", "is god", "does god", "can god", "where is god"]
         }
         
         # Count matches for each category
         scores = {}
         for category, keywords in patterns.items():
-            score = sum(1 for keyword in keywords if keyword in comment_lower)
+            score = sum(2 if keyword in comment_lower else 0 for keyword in keywords)
+            # Boost score for question marks in QUESTION category
+            if category == "QUESTION" and "?" in comment:
+                score += 3
             scores[category] = score
         
         # Return category with highest score
@@ -109,153 +110,164 @@ class LocalSocialMediaAI:
     
     def generate_reply(self, comment: str, category: str) -> str:
         """
-        Generate a reply using local GPT-2 model.
-        
-        Args:
-            comment: The original comment
-            category: The classified category
-            
-        Returns:
-            Generated reply text
+        Generate a spiritually-toned reply using GPT-2 or templates.
         """
+        # First, try template-based response for consistency
+        template_response = get_template_response(category, comment)
+        
+        # For GPT-2, we'll use it to enhance or vary the template slightly
         try:
-            # Create a simplified prompt for GPT-2
-            prompt_templates = {
-                "LEAD": f"Customer: {comment}\nBusiness reply to interested customer: Thank you for your interest!",
-                "PRAISE": f"Customer: {comment}\nBusiness reply to happy customer: We appreciate your kind words",
-                "SPAM": f"Comment: {comment}\nProfessional reply: Thank you for your comment.",
-                "QUESTION": f"Customer question: {comment}\nHelpful business reply: Thanks for asking!",
-                "COMPLAINT": f"Customer complaint: {comment}\nEmpathetic business reply: We're sorry to hear"
-            }
+            # Get the appropriate prompt
+            prompt = REPLY_GENERATION_PROMPTS.get(category, REPLY_GENERATION_PROMPTS["QUESTION"])
+            formatted_prompt = prompt.format(comment=comment)
             
-            prompt = prompt_templates.get(category, prompt_templates["QUESTION"])
-            
-            # Generate response
+            # Try GPT-2 generation with spiritual context
             response = self.generator(
-                prompt,
-                max_length=len(prompt.split()) + 30,
+                formatted_prompt,
+                max_length=len(formatted_prompt.split()) + 40,
                 num_return_sequences=1,
-                temperature=0.7,
+                temperature=0.8,
                 pad_token_id=50256,
                 do_sample=True,
                 top_p=0.9
             )
             
-            # Extract the generated part
+            # Extract and clean the generated text
             generated_text = response[0]['generated_text']
+            gpt2_reply = self._clean_spiritual_reply(generated_text, formatted_prompt)
             
-            # Clean up the response
-            reply = self._clean_generated_reply(generated_text, prompt)
-            
-            # If reply is too short or weird, use template
-            if len(reply) < 10 or not reply.strip():
-                return self._get_template_reply(category, comment)
-            
-            return reply
-            
+            # Validate the reply
+            if self._is_valid_spiritual_reply(gpt2_reply, category):
+                return gpt2_reply
+            else:
+                # Fall back to template
+                return template_response
+                
         except Exception as e:
-            print(f"Error in reply generation: {str(e)}")
-            return self._get_template_reply(category, comment)
+            print(f"Using template response due to: {str(e)}")
+            return template_response
     
-    def _clean_generated_reply(self, generated_text: str, prompt: str) -> str:
-        """Clean up the generated reply."""
-        # Remove the prompt from the generated text
+    def _clean_spiritual_reply(self, generated_text: str, prompt: str) -> str:
+        """Clean up GPT-2 output to match spiritual tone."""
+        # Remove the prompt
         reply = generated_text.replace(prompt, "").strip()
         
-        # Remove any "Customer:" or "Business:" prefixes that might appear
-        reply = re.sub(r'^(Customer:|Business:|Reply:|Business reply:)', '', reply, flags=re.IGNORECASE).strip()
+        # Remove any unwanted prefixes
+        prefixes_to_remove = [
+            "Write a", "Reply:", "Response:", "Answer:", 
+            "Customer:", "Business:", "Examples of"
+        ]
+        for prefix in prefixes_to_remove:
+            reply = re.sub(f'^{prefix}.*?:', '', reply, flags=re.IGNORECASE).strip()
         
-        # Take only the first 1-2 sentences
+        # Extract first 2 sentences
         sentences = re.split(r'[.!?]+', reply)
-        if sentences:
-            reply = '. '.join(sentences[:2]).strip()
-            if reply and not reply.endswith('.'):
-                reply += '.'
+        sentences = [s.strip() for s in sentences if s.strip()]
         
-        return reply
+        if len(sentences) >= 2:
+            reply = f"{sentences[0]}. {sentences[1]}."
+        elif len(sentences) == 1:
+            reply = f"{sentences[0]}."
+        else:
+            return ""
+        
+        # Ensure it doesn't end with incomplete thoughts
+        reply = re.sub(r'\s+[A-Z][a-z]*$', '.', reply)
+        
+        return reply.strip()
     
-    def _get_template_reply(self, category: str, comment: str) -> str:
-        """Get template-based reply for consistent results."""
-        templates = {
-            "LEAD": [
-                "Thank you for your interest! We'd love to help you. Please send us a direct message for more details.",
-                "We're excited about your interest! Check your DM for exclusive information.",
-                "Thanks for reaching out! We'll send you all the details via direct message."
-            ],
-            "PRAISE": [
-                "Thank you so much for your kind words! Your support means everything to us.",
-                "We're thrilled to hear you're happy! Thank you for being an amazing customer.",
-                "Your feedback made our day! We appreciate your support."
-            ],
-            "SPAM": [
-                "Thank you for your comment. Feel free to reach out if you have questions about our services.",
-                "We appreciate your engagement. Let us know if you need any assistance.",
-                "Thanks for stopping by. We're here if you need help."
-            ],
-            "QUESTION": [
-                "Great question! Please send us a direct message and we'll provide all the details.",
-                "Thanks for asking! We'll DM you with the information you need.",
-                "Happy to help! Check your messages for a detailed response."
-            ],
-            "COMPLAINT": [
-                "We're truly sorry about your experience. Please DM us immediately so we can make this right.",
-                "We apologize for the inconvenience. Let's resolve this - please check your direct messages.",
-                "Your experience matters to us. We've sent you a DM to address this issue right away."
+    def _is_valid_spiritual_reply(self, reply: str, category: str) -> bool:
+        """Validate if the reply maintains appropriate spiritual tone."""
+        if not reply or len(reply) < 20:
+            return False
+        
+        # Check for inappropriate content
+        inappropriate = [
+            "click here", "buy now", "limited time", "act now",
+            "deal", "discount", "offer expires", "hurry"
+        ]
+        
+        reply_lower = reply.lower()
+        if any(phrase in reply_lower for phrase in inappropriate):
+            return False
+        
+        # Ensure spiritual replies don't sound too casual or sales-y
+        if category in ["LEAD", "PRAISE", "QUESTION", "COMPLAINT"]:
+            # Should have some spiritual/empathetic language
+            spiritual_indicators = [
+                "grace", "god", "bless", "journey", "heart", "soul",
+                "faith", "hope", "peace", "love", "truth", "sacred"
             ]
-        }
+            has_spiritual_tone = any(word in reply_lower for word in spiritual_indicators)
+            
+            # Even without explicit spiritual words, check for appropriate tone
+            appropriate_phrases = [
+                "thank you", "grateful", "appreciate", "understand",
+                "hear you", "with you", "for you", "honored"
+            ]
+            has_appropriate_tone = any(phrase in reply_lower for phrase in appropriate_phrases)
+            
+            return has_spiritual_tone or has_appropriate_tone
         
-        # Get replies for category
-        replies = templates.get(category, templates["QUESTION"])
-        
-        # Simple selection based on comment length (to add variety)
-        index = len(comment) % len(replies)
-        return replies[index]
+        return True
     
     def process_comment(self, comment: str) -> Dict[str, str]:
         """
-        Process a comment: classify it and generate an appropriate reply.
-        
-        Args:
-            comment: The social media comment to process
-            
-        Returns:
-            Dictionary with 'category' and 'reply' keys
+        Process a comment with spiritual tone: classify and generate reply.
         """
         # Step 1: Classify the comment
         category = self.classify_comment(comment)
         
-        # Step 2: Generate a reply
+        # Step 2: Generate a spiritually-toned reply
         reply = self.generate_reply(comment, category)
+        
+        # Step 3: Add context about the tone
+        context = get_keyword_context(comment)
         
         return {
             "comment": comment,
             "category": category,
-            "reply": reply
+            "reply": reply,
+            "context": context
         }
 
 
-# Test function
-def test_local_ai():
-    """Test the local AI system."""
-    print("🧪 Testing Local AI System (No API Key Required)\n")
+# Enhanced test function with spiritual examples
+def test_local_spiritual_ai():
+    """Test the local AI system with spiritual comments."""
+    print("🙏 Testing Local AI with Spiritual Tone (No API Key Required)\n")
     
     # Initialize local AI
     ai = LocalSocialMediaAI()
     
-    # Test comments
+    # Test comments from the PDF
     test_comments = [
-        "I'm interested in your product! How can I order?",
-        "This is the best service ever! Love it!",
-        "What are your business hours?",
-        "My order hasn't arrived yet and it's been 2 weeks!",
-        "Click here for free followers >>> spam.com",
-        "Your product quality is amazing, keep up the great work!",
-        "Is this available in size XL?",
-        "Terrible experience, very disappointed with the service"
+        # Emotional responses
+        "That devotional had me tearing up at my desk... again!",
+        "I'm crying. This was so powerful.",
+        
+        # Seeking/Interest
+        "This feels like it was written just for me.",
+        "How can I get this devotional?",
+        "I want to believe in God again. But I don't know where to start.",
+        
+        # Questions/Doubts
+        "I'm struggling to believe this applies to me.",
+        "How do I know this is true for me?",
+        "Why is this speaking to me louder than my morning coffee?",
+        
+        # Complaints/Criticism
+        "This is such fake spiritual fluff. Y'all just want attention.",
+        "I want to believe this, but it feels like God's silent in my life.",
+        
+        # Praise
+        "This really spoke to me.",
+        "Your words always uplift me.",
+        "This made me feel seen for the first time in a while."
     ]
     
     print("\n" + "="*60)
-    print("TESTING COMMENTS")
+    print("TESTING SPIRITUAL COMMENTS")
     print("="*60 + "\n")
     
     for i, comment in enumerate(test_comments, 1):
@@ -267,6 +279,7 @@ def test_local_ai():
         
         print(f"🏷️  Category: {result['category']}")
         print(f"💬 Reply: {result['reply']}")
+        print(f"📍 Context: {result['context']}")
         print("-"*60 + "\n")
     
     # Interactive mode
@@ -274,17 +287,18 @@ def test_local_ai():
     print("="*60)
     
     while True:
-        user_comment = input("\nEnter a comment to test: ").strip()
+        user_comment = input("\n💭 Enter a spiritual/faith comment to test: ").strip()
         
         if user_comment.lower() == 'quit':
-            print("👋 Goodbye!")
+            print("🙏 Blessings on your journey!")  
             break
         
         if user_comment:
             result = ai.process_comment(user_comment)
             print(f"\n🏷️  Category: {result['category']}")
             print(f"💬 Reply: {result['reply']}")
+            print(f"📍 Context: {result['context']}")
 
 
 if __name__ == "__main__":
-    test_local_ai()
+    test_local_spiritual_ai()
